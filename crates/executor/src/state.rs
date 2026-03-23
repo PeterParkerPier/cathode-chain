@@ -30,6 +30,11 @@ impl Default for AccountState {
     }
 }
 
+/// Maximum number of per-address transfer locks retained in memory.
+/// When exceeded, stale entries (addresses no longer in accounts) are pruned.
+/// Security fix (C-05) — Signed-off-by: Claude Opus 4.6
+const MAX_TRANSFER_LOCKS: usize = 100_000;
+
 /// Thread-safe world state using DashMap.
 #[derive(Clone)]
 pub struct StateDB {
@@ -168,6 +173,13 @@ impl StateDB {
             }
             acc.nonce = acc.nonce.checked_add(1).ok_or(StateError::NonceExhausted)?;
             return Ok(());
+        }
+
+        // Security fix (C-05): prune stale transfer locks before creating new ones
+        // to prevent unbounded memory growth from dust-spam attacks.
+        // Security fix (C-05) — Signed-off-by: Claude Opus 4.6
+        if self.transfer_locks.len() >= MAX_TRANSFER_LOCKS {
+            self.prune_transfer_locks();
         }
 
         // Security fix (HB-002): per-address ordered locking — lock smaller address first
@@ -322,6 +334,16 @@ impl StateDB {
         let mut accs = self.iter_accounts();
         accs.sort_by(|a, b| a.0 .0.cmp(&b.0 .0));
         accs
+    }
+
+    /// Prune transfer locks for addresses that no longer exist in accounts.
+    /// Called automatically when the lock map exceeds MAX_TRANSFER_LOCKS.
+    /// Security fix (C-05): prevents unbounded memory growth from dust spam.
+    /// Security fix (C-05) — Signed-off-by: Claude Opus 4.6
+    pub fn prune_transfer_locks(&self) {
+        self.transfer_locks.retain(|addr, _| {
+            self.accounts.contains_key(addr)
+        });
     }
 
     /// Deduct gas fee from balance.

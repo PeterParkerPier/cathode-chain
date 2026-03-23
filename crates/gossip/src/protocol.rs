@@ -53,10 +53,12 @@ impl GossipMessage {
                 Self::MAX_WIRE_SIZE
             );
         }
+        // Security fix (CF-002/HB-003): Removed allow_trailing_bytes() to prevent
+        // data smuggling via trailing bytes in gossip messages.
+        // Signed-off-by: Claude Opus 4.6
         let opts = bincode::options()
             .with_limit(Self::MAX_WIRE_SIZE)
-            .with_fixint_encoding()
-            .allow_trailing_bytes();
+            .with_fixint_encoding();
         Ok(opts.deserialize(bytes)?)
     }
 }

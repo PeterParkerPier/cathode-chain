@@ -4,7 +4,8 @@ use cathode_crypto::hash::Hash32;
 use cathode_types::address::Address;
 use cathode_types::token::TokenAmount;
 use serde::{Deserialize, Serialize};
-use std::sync::RwLock;
+// Security fix (SP-003/ToB-003): parking_lot RwLock never poisons — Signed-off-by: Claude Opus 4.6
+use parking_lot::RwLock;
 
 /// Transaction confirmation status.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -53,19 +54,19 @@ impl TxHistory {
 
     /// Add a transaction record.
     pub fn add_record(&self, record: TxRecord) {
-        let mut records = self.records.write().expect("TxHistory lock poisoned");
+        let mut records = self.records.write();
         records.push(record);
     }
 
     /// Look up a transaction by hash.
     pub fn get_by_hash(&self, hash: &Hash32) -> Option<TxRecord> {
-        let records = self.records.read().expect("TxHistory lock poisoned");
+        let records = self.records.read();
         records.iter().find(|r| r.hash == *hash).cloned()
     }
 
     /// Get all transactions involving an address (sent or received).
     pub fn get_by_address(&self, address: &Address) -> Vec<TxRecord> {
-        let records = self.records.read().expect("TxHistory lock poisoned");
+        let records = self.records.read();
         records
             .iter()
             .filter(|r| r.from == *address || r.to == *address)
@@ -75,13 +76,13 @@ impl TxHistory {
 
     /// Get the most recent `n` transactions (newest first).
     pub fn get_recent(&self, n: usize) -> Vec<TxRecord> {
-        let records = self.records.read().expect("TxHistory lock poisoned");
+        let records = self.records.read();
         records.iter().rev().take(n).cloned().collect()
     }
 
     /// Filter transactions by status.
     pub fn filter_by_status(&self, status: &TxStatus) -> Vec<TxRecord> {
-        let records = self.records.read().expect("TxHistory lock poisoned");
+        let records = self.records.read();
         records
             .iter()
             .filter(|r| r.status == *status)
@@ -91,7 +92,7 @@ impl TxHistory {
 
     /// Total number of records.
     pub fn len(&self) -> usize {
-        let records = self.records.read().expect("TxHistory lock poisoned");
+        let records = self.records.read();
         records.len()
     }
 

@@ -101,9 +101,20 @@ impl RpcServer {
             .clone()
             .unwrap_or_else(|| Arc::new(EventBus::new()));
 
+        // Security fix (C-04): Generate a random WS API key at startup instead
+        // of using open access. Prevents unauthorized front-running / MEV extraction.
+        // The key is logged at INFO level so the operator can use it.
+        // Signed-off-by: Claude Opus 4.6
+        let ws_api_key: String = {
+            use rand::Rng;
+            let mut rng = rand::thread_rng();
+            let bytes: [u8; 32] = rng.gen();
+            hex::encode(bytes)
+        };
+        tracing::info!(ws_api_key = %ws_api_key, "WebSocket API key generated — use ?api_key=<key> to connect");
         let ws_state = WsState {
             bus,
-            auth: WsAuthConfig::open(),
+            auth: WsAuthConfig::with_keys([ws_api_key]),
         };
 
         let ws_route = Router::new()

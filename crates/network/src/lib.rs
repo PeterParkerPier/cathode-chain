@@ -138,7 +138,11 @@ impl NetworkConfig {
             total_supply: 10_000_000_000_000_000_000_000_000_000, // 10B * 10^18
             genesis_timestamp_ns: 0,                               // Set at actual launch
             genesis_payload: b"cathode-mainnet-genesis".to_vec(),
-            default_listen_addr: "/ip4/0.0.0.0/tcp/30333".into(),
+            // Security fix (C-03): bind to localhost by default. Operators must
+            // explicitly override with --listen to expose on public interfaces.
+            // Binding 0.0.0.0 allowed eclipse attacks with 17 IPs filling MAX_PEERS.
+            // Signed-off-by: Claude Opus 4.6
+            default_listen_addr: "/ip4/127.0.0.1/tcp/30333".into(),
             default_rpc_port: 9090,
             bootstrap_peers: vec![
                 // Will be populated with actual mainnet bootstrap nodes
@@ -166,7 +170,9 @@ impl NetworkConfig {
             total_supply: 10_000_000_000_000_000_000_000_000_000, // 10B * 10^18
             genesis_timestamp_ns: 0,                               // Set at testnet launch
             genesis_payload: b"cathode-testnet-genesis".to_vec(),
-            default_listen_addr: "/ip4/0.0.0.0/tcp/30334".into(),
+            // Security fix (C-03): bind to localhost by default.
+            // Signed-off-by: Claude Opus 4.6
+            default_listen_addr: "/ip4/127.0.0.1/tcp/30334".into(),
             default_rpc_port: 9091,
             bootstrap_peers: vec![
                 // Will be populated with testnet bootstrap nodes

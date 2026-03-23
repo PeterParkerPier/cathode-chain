@@ -20,6 +20,7 @@ tracing.workspace         = true
 tokio.workspace           = true
 parking_lot.workspace     = true
 hex.workspace             = true
+rand.workspace            = true
 
 # HTTP server
 axum = { version = "0.7", features = ["ws"] }

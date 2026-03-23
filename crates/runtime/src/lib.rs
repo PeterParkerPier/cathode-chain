@@ -78,20 +78,17 @@ impl Runtime {
     /// Execute a contract call.
     /// Currently a stub — returns success with zero gas.
     /// Future: WASM instantiation + execution with gas metering.
+    /// Security fix (C-06): Runtime is a stub — refuse execution rather than
+    /// silently returning success. Callers must use the executor pipeline.
+    /// Signed-off-by: Claude Opus 4.6
     pub fn execute(
         &self,
         _code: &[u8],
         _method: &str,
         _args: &[u8],
-        gas_limit: u64,
+        _gas_limit: u64,
     ) -> Result<ExecutionResult> {
-        let gas_limit = gas_limit.min(self.config.max_gas);
-        Ok(ExecutionResult {
-            success: true,
-            gas_used: 0,
-            return_value: vec![],
-            logs: vec![],
-        })
+        anyhow::bail!("runtime execute() is not yet implemented — use executor pipeline for transaction processing");
     }
 
     /// Get runtime config.
@@ -128,10 +125,13 @@ mod tests {
     }
 
     #[test]
-    fn execute_stub() {
+    fn execute_stub_rejects() {
         let rt = Runtime::with_defaults();
         let wasm = b"\x00asm\x01\x00\x00\x00";
-        let result = rt.execute(wasm, "main", &[], 1_000_000).unwrap();
-        assert!(result.success);
+        let err = rt.execute(wasm, "main", &[], 1_000_000).unwrap_err();
+        assert!(
+            err.to_string().contains("not yet implemented"),
+            "expected 'not yet implemented' error, got: {err}"
+        );
     }
 }

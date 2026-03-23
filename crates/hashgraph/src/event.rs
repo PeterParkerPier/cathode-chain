@@ -188,10 +188,12 @@ impl Event {
     /// Signed-off-by: Claude Opus 4.6
     pub fn decode(bytes: &[u8]) -> anyhow::Result<Self> {
         use bincode::Options;
+        // Security fix (CF-002/HB-003): Removed allow_trailing_bytes() to prevent
+        // data smuggling via trailing bytes in event payloads.
+        // Signed-off-by: Claude Opus 4.6
         let opts = bincode::options()
             .with_limit((MAX_PAYLOAD_SIZE as u64) + 4096)
-            .with_fixint_encoding()
-            .allow_trailing_bytes();
+            .with_fixint_encoding();
         let event: Self = opts.deserialize(bytes)?;
         anyhow::ensure!(
             event.payload.len() <= MAX_PAYLOAD_SIZE,

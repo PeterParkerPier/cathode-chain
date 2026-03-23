@@ -168,7 +168,8 @@ impl EventStore {
         key.extend_from_slice(msg.topic_id.as_bytes());
         key.extend_from_slice(&msg.sequence_number.to_be_bytes());
         let bytes = bincode::serialize(msg).context("serialize HCS message")?;
-        self.db.put_cf(cf, &key, &bytes).context("put HCS message")
+        // Security fix (SP-008/CD-003): sync-flush HCS messages — Signed-off-by: Claude Opus 4.6
+        self.db.put_cf_opt(cf, &key, &bytes, &self.sync_write_opts).context("put HCS message (sync)")
     }
 
     /// Get an HCS message by topic + sequence.
@@ -187,7 +188,8 @@ impl EventStore {
 
     pub fn put_meta(&self, key: &str, value: &[u8]) -> Result<()> {
         let cf = self.db.cf_handle(CF_META).context("missing CF: meta")?;
-        self.db.put_cf(cf, key.as_bytes(), value).context("put meta")
+        // Security fix (SP-009): sync-flush metadata — Signed-off-by: Claude Opus 4.6
+        self.db.put_cf_opt(cf, key.as_bytes(), value, &self.sync_write_opts).context("put meta (sync)")
     }
 
     pub fn get_meta(&self, key: &str) -> Result<Option<Vec<u8>>> {

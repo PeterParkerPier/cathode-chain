@@ -40,9 +40,16 @@ impl StateCheckpoint {
         let account_count = accounts.len();
 
         // Compute merkle root from the captured snapshot, not from live state.
+        // Security fix (C-02): leaf hash must match StateDB::merkle_root() exactly —
+        // same serialisation format (addr.0 bytes ++ bincode(state)) and same hash
+        // function (sha3_256).  Previously used bincode(&(addr, acc)) + blake3,
+        // which meant checkpoint roots NEVER matched live state roots.
+        // Security fix (C-02) — Signed-off-by: Claude Opus 4.6
         let leaves: Vec<Hash32> = accounts.iter().map(|(addr, acc)| {
-            let data = bincode::serialize(&(addr, acc)).expect("serialize account");
-            Hasher::blake3(&data)
+            let mut buf = Vec::with_capacity(128);
+            buf.extend_from_slice(&addr.0);
+            buf.extend_from_slice(&bincode::serialize(acc).expect("serialize account"));
+            Hasher::sha3_256(&buf)
         }).collect();
         let state_root = if leaves.is_empty() {
             Hash32::ZERO
@@ -100,10 +107,12 @@ impl StateCheckpoint {
             bytes.len(),
             MAX_CHECKPOINT_SIZE
         );
+        // Security fix (CF-002/HB-003): Removed allow_trailing_bytes() to prevent
+        // data smuggling via trailing bytes in checkpoint payloads.
+        // Signed-off-by: Claude Opus 4.6
         let opts = bincode::options()
             .with_limit(MAX_CHECKPOINT_SIZE)
-            .with_fixint_encoding()
-            .allow_trailing_bytes();
+            .with_fixint_encoding();
         Ok(opts.deserialize(bytes)?)
     }
 }

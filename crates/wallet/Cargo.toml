@@ -17,6 +17,7 @@ chrono.workspace         = true
 sha3.workspace           = true
 blake3.workspace         = true
 dashmap.workspace        = true
+parking_lot.workspace    = true
 # Memory-hard KDF — security fix (E-06) — Signed-off-by: Claude Sonnet 4.6
 argon2.workspace         = true
 

@@ -32,10 +32,16 @@ pub fn compute_root(leaves: &[Hash32]) -> Hash32 {
         return Hash32::ZERO;
     }
     if leaves.len() == 1 {
-        return leaves[0];
+        // Security fix (CK-001): Apply leaf domain separation (RFC 6962).
+        // Signed-off-by: Claude Opus 4.6
+        return Hasher::leaf_hash(&leaves[0]);
     }
 
-    let mut current_level: Vec<Hash32> = leaves.to_vec();
+    // Security fix (CK-001): Apply leaf domain separation (RFC 6962).
+    // Signed-off-by: Claude Opus 4.6
+    let mut current_level: Vec<Hash32> = leaves.iter()
+        .map(|l| Hasher::leaf_hash(l))
+        .collect();
 
     while current_level.len() > 1 {
         // Security fix: pad with ZERO, not last-leaf duplicate.
@@ -66,7 +72,11 @@ pub fn generate_proof(leaves: &[Hash32], index: usize) -> BridgeMerkleProof {
 
     let mut siblings = Vec::new();
     let mut path_bits = Vec::new();
-    let mut current_level: Vec<Hash32> = leaves.to_vec();
+    // Security fix (CK-001): Apply leaf domain separation (RFC 6962).
+    // Signed-off-by: Claude Opus 4.6
+    let mut current_level: Vec<Hash32> = leaves.iter()
+        .map(|l| Hasher::leaf_hash(l))
+        .collect();
     let mut idx = index;
 
     while current_level.len() > 1 {
@@ -104,7 +114,9 @@ pub fn verify_proof(proof: &BridgeMerkleProof) -> bool {
         return false;
     }
 
-    let mut current = proof.leaf;
+    // Security fix (CK-001): Start verification with leaf domain separation (RFC 6962).
+    // Signed-off-by: Claude Opus 4.6
+    let mut current = Hasher::leaf_hash(&proof.leaf);
 
     for (sibling, &is_right) in proof.siblings.iter().zip(proof.path_bits.iter()) {
         if is_right {
@@ -130,15 +142,28 @@ mod tests {
     #[test]
     fn single_leaf() {
         let leaves = vec![make_leaf(1)];
-        assert_eq!(compute_root(&leaves), leaves[0]);
+        // After CK-001 fix: single leaf returns leaf_hash, not raw leaf.
+        assert_eq!(compute_root(&leaves), Hasher::leaf_hash(&leaves[0]));
     }
 
     #[test]
     fn two_leaves() {
         let leaves = vec![make_leaf(1), make_leaf(2)];
         let root = compute_root(&leaves);
-        let expected = Hasher::combine(&leaves[0], &leaves[1]);
+        // After CK-001 fix: leaves are domain-separated before combine.
+        let lh0 = Hasher::leaf_hash(&leaves[0]);
+        let lh1 = Hasher::leaf_hash(&leaves[1]);
+        let expected = Hasher::combine(&lh0, &lh1);
         assert_eq!(root, expected);
+    }
+
+    #[test]
+    fn proof_round_trip() {
+        let leaves = vec![make_leaf(1), make_leaf(2), make_leaf(3)];
+        for i in 0..leaves.len() {
+            let proof = generate_proof(&leaves, i);
+            assert!(verify_proof(&proof), "proof failed for index {}", i);
+        }
     }
 
     #[test]

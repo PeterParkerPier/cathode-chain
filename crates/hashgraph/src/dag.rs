@@ -205,10 +205,17 @@ impl Hashgraph {
         if event.timestamp_ns == u64::MAX {
             return Err(HashgraphError::InvalidTimestamp(event.timestamp_ns));
         }
+        // Security fix (ToB-001/CF-001): Prevent u128->u64 truncation and clock
+        // failure silently producing 0. Clamp via .min() instead of bare cast.
+        // If system clock returns error (now_ns == 0), use event's own timestamp
+        // as fallback so we do not reject all future events.
+        // Signed-off-by: Claude Opus 4.6
         let now_ns = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_nanos() as u64;
+            .as_nanos()
+            .min(u64::MAX as u128) as u64;
+        let now_ns = if now_ns == 0 { event.timestamp_ns } else { now_ns };
         // 30 seconds in nanoseconds
         let thirty_sec_ns: u64 = 30 * 1_000_000_000;
         if event.timestamp_ns > now_ns.saturating_add(thirty_sec_ns) {
@@ -709,6 +716,129 @@ impl Hashgraph {
         // lock-order inversion between events and witnesses_by_round).
         if let Some((r, h)) = witness_index_update {
             self.witnesses_by_round.write().entry(r).or_default().push(h);
+        }
+    }
+
+    // ======================================================================
+    //  DAG PRUNING — prevent unbounded memory growth
+    // ======================================================================
+
+    /// Number of finalized rounds to keep in memory after pruning.
+    /// Events older than `current_round - PRUNE_KEEP_ROUNDS` are eligible
+    /// for removal (unless they are parents of retained events).
+    ///
+    /// Security fix (C-01 DAG pruning) — Signed-off-by: Claude Opus 4.6
+    const PRUNE_KEEP_ROUNDS: u64 = 1000;
+
+    /// Prune events from rounds older than `min_round`.
+    ///
+    /// Removes events, creator_events entries, insertion_order entries,
+    /// witnesses_by_round entries, and creator_parent_index entries for
+    /// all events whose round is `Some(r)` where `r < min_round`.
+    ///
+    /// Events with `round = None` (not yet assigned) are never pruned.
+    /// Events that are parents of retained events are also kept to
+    /// maintain referential integrity (parent validation on insert).
+    ///
+    /// Security fix (C-01 DAG pruning) — Signed-off-by: Claude Opus 4.6
+    pub fn prune_before_round(&self, min_round: u64) {
+        if min_round == 0 {
+            return;
+        }
+
+        // Phase 1: Identify events to prune (read-only scan).
+        let events_snap = self.events.read();
+        let mut candidates: HashSet<EventHash> = HashSet::new();
+        let mut retained: HashSet<EventHash> = HashSet::new();
+
+        for (hash, ev) in events_snap.iter() {
+            match ev.round {
+                Some(r) if r < min_round => {
+                    candidates.insert(*hash);
+                }
+                _ => {
+                    retained.insert(*hash);
+                }
+            }
+        }
+
+        // Phase 2: Protect parents of retained events from pruning.
+        for hash in &retained {
+            if let Some(ev) = events_snap.get(hash) {
+                if ev.self_parent != Hash32::ZERO {
+                    candidates.remove(&ev.self_parent);
+                }
+                if ev.other_parent != Hash32::ZERO {
+                    candidates.remove(&ev.other_parent);
+                }
+            }
+        }
+        drop(events_snap);
+
+        if candidates.is_empty() {
+            return;
+        }
+
+        let pruned_count = candidates.len();
+
+        // Phase 3: Remove from all data structures under write locks.
+        {
+            let mut events = self.events.write();
+            for hash in &candidates {
+                events.remove(hash);
+            }
+        }
+
+        {
+            let mut ce = self.creator_events.write();
+            for (_, hashes) in ce.iter_mut() {
+                hashes.retain(|h| !candidates.contains(h));
+            }
+            // Remove creators with no remaining events.
+            ce.retain(|_, v| !v.is_empty());
+            // Update node_count to match.
+            *self.node_count.write() = ce.len();
+        }
+
+        {
+            let mut io = self.insertion_order.write();
+            io.retain(|h| !candidates.contains(h));
+        }
+
+        {
+            let mut wbr = self.witnesses_by_round.write();
+            // Remove all rounds below min_round entirely.
+            wbr.retain(|&round, _| round >= min_round);
+        }
+
+        {
+            let mut cpi = self.creator_parent_index.write();
+            cpi.retain(|_, hash| !candidates.contains(hash));
+        }
+
+        // Update count.
+        {
+            let mut count = self.count.write();
+            *count = count.saturating_sub(pruned_count);
+        }
+
+        tracing::info!(
+            pruned = pruned_count,
+            remaining = self.len(),
+            min_round = min_round,
+            "DAG pruned old events"
+        );
+    }
+
+    /// Prune events older than `PRUNE_KEEP_ROUNDS` rounds behind `current_round`.
+    ///
+    /// Call this periodically after consensus advances (e.g., after `find_order`).
+    ///
+    /// Security fix (C-01 DAG pruning) — Signed-off-by: Claude Opus 4.6
+    pub fn prune_old_rounds(&self, current_round: u64) {
+        let min_round = current_round.saturating_sub(Self::PRUNE_KEEP_ROUNDS);
+        if min_round > 0 {
+            self.prune_before_round(min_round);
         }
     }
 }
