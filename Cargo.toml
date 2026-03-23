@@ -1,0 +1,108 @@
+[workspace]
+members = [
+    "crates/crypto",
+    "crates/types",
+    "crates/hashgraph",
+    "crates/executor",
+    "crates/mempool",
+    "crates/hcs",
+    "crates/gossip",
+    "crates/storage",
+    "crates/runtime",
+    "crates/rpc",
+    "crates/sync",
+    "crates/governance",
+    "crates/payment",
+    "node",
+    "crates/wallet",
+    "crates/bridge",
+    "crates/scan",
+    "crates/network",
+    "cli",
+]
+resolver = "2"
+
+[workspace.package]
+version       = "1.5.1"
+edition       = "2021"
+rust-version  = "1.75"
+authors       = ["cathode contributors"]
+license       = "MIT OR Apache-2.0"
+
+# ─── Shared dependency versions ───────────────────────────────────────────────
+[workspace.dependencies]
+# Async
+tokio         = { version = "1", features = ["full"] }
+tokio-util    = { version = "0.7", features = ["codec"] }
+
+# Parallelism
+rayon         = "1"
+
+# Serialisation
+serde         = { version = "1", features = ["derive"] }
+serde_json    = "1"
+bincode       = "1"
+
+# Crypto (classical)
+sha3          = "0.10"
+blake3        = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand          = "0.8"
+rand_core     = "0.6"
+hex           = "0.4"
+zeroize       = { version = "1", features = ["derive"] }
+subtle        = "2"
+# Memory-hard KDF for keystore password hashing — replaces BLAKE3 derive_key.
+# Security fix (E-06) — Signed-off-by: Claude Sonnet 4.6
+argon2        = { version = "0.5", features = ["zeroize"] }
+
+# Post-quantum
+pqcrypto-falcon     = "0.3"
+pqcrypto-dilithium  = "0.5"
+pqcrypto-traits     = "0.3"
+
+# BLS
+bls12_381 = "0.8"
+
+# Networking
+libp2p = { version = "0.53", features = [
+    "tcp", "noise", "yamux", "gossipsub", "identify",
+    "kad", "ping", "tokio", "macros",
+] }
+
+# Storage
+rocksdb = "0.21"
+
+# Error handling
+anyhow    = "1"
+thiserror = "1"
+
+# Logging
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Misc
+bytes       = "1"
+parking_lot = "0.12"
+dashmap     = "5"
+once_cell   = "1"
+chrono      = { version = "0.4", features = ["serde"] }
+
+# Internal crates
+cathode-crypto    = { path = "crates/crypto" }
+cathode-types     = { path = "crates/types" }
+cathode-hashgraph = { path = "crates/hashgraph" }
+cathode-executor  = { path = "crates/executor" }
+cathode-mempool   = { path = "crates/mempool" }
+cathode-hcs       = { path = "crates/hcs" }
+cathode-gossip    = { path = "crates/gossip" }
+cathode-storage   = { path = "crates/storage" }
+cathode-runtime    = { path = "crates/runtime" }
+cathode-rpc        = { path = "crates/rpc" }
+cathode-sync       = { path = "crates/sync" }
+cathode-governance = { path = "crates/governance" }
+cathode-payment    = { path = "crates/payment" }
+cathode-wallet     = { path = "crates/wallet" }
+cathode-bridge     = { path = "crates/bridge" }
+cathode-scan       = { path = "crates/scan" }
+cathode-network    = { path = "crates/network" }

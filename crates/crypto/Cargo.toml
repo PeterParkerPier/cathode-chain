@@ -1,0 +1,25 @@
+[package]
+name    = "cathode-crypto"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sha3.workspace          = true
+blake3.workspace        = true
+ed25519-dalek.workspace = true
+rand.workspace          = true
+rand_core.workspace     = true
+hex.workspace           = true
+zeroize.workspace       = true
+subtle.workspace        = true
+serde.workspace         = true
+bincode.workspace       = true
+anyhow.workspace        = true
+thiserror.workspace     = true
+pqcrypto-falcon.workspace    = true
+pqcrypto-dilithium.workspace = true
+pqcrypto-traits.workspace    = true
+bls12_381.workspace     = true
+once_cell.workspace     = true
+tracing.workspace       = true
+rayon.workspace         = true

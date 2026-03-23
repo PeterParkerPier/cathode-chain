@@ -1,0 +1,27 @@
+[package]
+name    = "cathode-node"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "cathode-node"
+path = "src/main.rs"
+
+[dependencies]
+cathode-crypto.workspace    = true
+cathode-hashgraph.workspace = true
+cathode-hcs.workspace       = true
+cathode-gossip.workspace    = true
+cathode-storage.workspace   = true
+cathode-network.workspace   = true
+cathode-runtime.workspace   = true
+
+tokio.workspace            = true
+serde.workspace            = true
+serde_json.workspace       = true
+anyhow.workspace           = true
+tracing.workspace          = true
+tracing-subscriber.workspace = true
+clap                       = { version = "4", features = ["derive"] }
+libp2p.workspace           = true
+zeroize.workspace          = true

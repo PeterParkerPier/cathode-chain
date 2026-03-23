@@ -1,0 +1,22 @@
+[package]
+name    = "cathode-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "cathode"
+path = "src/main.rs"
+
+[dependencies]
+cathode-crypto.workspace  = true
+cathode-types             = { path = "../crates/types" }
+cathode-network           = { path = "../crates/network" }
+serde.workspace           = true
+serde_json.workspace      = true
+bincode.workspace         = true
+anyhow.workspace          = true
+hex.workspace             = true
+clap = { version = "4", features = ["derive"] }
+reqwest = { version = "0.12", features = ["json", "blocking"] }
+tokio.workspace           = true
+zeroize.workspace         = true

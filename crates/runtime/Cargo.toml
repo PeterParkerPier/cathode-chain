@@ -1,0 +1,11 @@
+[package]
+name    = "cathode-runtime"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cathode-crypto.workspace    = true
+cathode-hashgraph.workspace = true
+serde.workspace            = true
+anyhow.workspace           = true
+tracing.workspace          = true

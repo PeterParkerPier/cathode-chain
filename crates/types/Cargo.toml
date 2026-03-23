@@ -1,0 +1,12 @@
+[package]
+name    = "cathode-types"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cathode-crypto.workspace = true
+serde.workspace          = true
+bincode.workspace        = true
+thiserror.workspace      = true
+hex.workspace            = true
+chrono.workspace         = true

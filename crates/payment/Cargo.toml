@@ -1,0 +1,16 @@
+[package]
+name    = "cathode-payment"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cathode-crypto.workspace = true
+cathode-types.workspace  = true
+serde.workspace          = true
+bincode.workspace        = true
+hex.workspace            = true
+thiserror.workspace      = true
+dashmap.workspace        = true
+parking_lot.workspace    = true
+chrono.workspace         = true
+tracing.workspace        = true

@@ -1,0 +1,27 @@
+[package]
+name    = "cathode-scan"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cathode-crypto.workspace    = true
+cathode-types               = { path = "../types" }
+cathode-executor            = { path = "../executor" }
+cathode-mempool             = { path = "../mempool" }
+cathode-hashgraph           = { path = "../hashgraph" }
+cathode-payment             = { path = "../payment" }
+cathode-wallet              = { path = "../wallet" }
+cathode-bridge              = { path = "../bridge" }
+cathode-governance          = { path = "../governance" }
+cathode-gossip              = { path = "../gossip" }
+serde.workspace             = true
+serde_json.workspace        = true
+thiserror.workspace         = true
+dashmap.workspace            = true
+chrono.workspace             = true
+hex.workspace                = true
+tokio                        = { workspace = true, features = ["rt", "macros"] }
+
+[dev-dependencies]
+cathode-crypto.workspace    = true
+tokio                        = { workspace = true, features = ["rt", "macros"] }
