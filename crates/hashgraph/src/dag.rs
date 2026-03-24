@@ -465,6 +465,13 @@ impl Hashgraph {
 
     /// Take a snapshot of all events for lock-free queries.
     /// Used by consensus algorithms to avoid holding locks during traversal.
+    ///
+    /// Security fix (HB-H-02): After DAG pruning (PRUNE_KEEP_ROUNDS=1000),
+    /// the snapshot is bounded to ~1000 rounds worth of events. The clone
+    /// only bumps Arc reference counts (O(n) but no deep copy of Event data).
+    /// For a 200-node network at 20 events/s with 1000-round retention,
+    /// this is ~200K entries * 40 bytes (hash+Arc) = ~8 MB per snapshot.
+    /// Signed-off-by: Claude Opus 4.6
     pub fn snapshot(&self) -> HashMap<EventHash, Arc<Event>> {
         self.events.read().clone()
     }

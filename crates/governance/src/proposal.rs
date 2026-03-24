@@ -199,19 +199,20 @@ impl GovernanceEngine {
             return Err(GovernanceError::AlreadyVoted);
         }
 
-        proposal.voters.insert(voter);
+        // Security fix (OZ-H-01): Tally vote BEFORE inserting into voters set.
+        // If checked_add fails, the voter is NOT recorded and can retry.
+        // Previously voters.insert() was before checked_add — on overflow the
+        // voter was permanently blocked without their vote being counted.
+        // Signed-off-by: Claude Opus 4.6
         if approve {
-            // Security fix (CK-R-01): checked_add for consistency with financial paths.
-            // Signed-off-by: Claude Opus 4.6
-            // Security fix (H-02): Return error on overflow instead of silently
-            // dropping the vote. Voter is NOT added to voters set yet (moved below).
-            // Signed-off-by: Claude Opus 4.6
             proposal.votes_for = proposal.votes_for.checked_add(stake)
                 .ok_or(GovernanceError::InvalidAddress("vote tally overflow".into()))?;
         } else {
             proposal.votes_against = proposal.votes_against.checked_add(stake)
                 .ok_or(GovernanceError::InvalidAddress("vote tally overflow".into()))?;
         }
+        // Only record voter AFTER successful tally update.
+        proposal.voters.insert(voter);
 
         // Check if resolved (>2/3 total stake voted for)
         // Security fix (GV-01): use snapshot from creation, not live total_stake.

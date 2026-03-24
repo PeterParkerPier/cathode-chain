@@ -199,19 +199,21 @@ pub struct WsParams {
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<WsState>,
+    headers: axum::http::HeaderMap,
     Query(params): Query<WsParams>,
 ) -> impl IntoResponse {
-    // Check authentication if configured.
-    // Security fix (C-01): Check BOTH query param AND Authorization header.
-    // Previously only query param was checked, so clients using header auth
-    // (as documented) were silently accepted without validation.
+    // Security fix (HB-H-01): Check BOTH query param AND Authorization header.
+    // Clients can authenticate via either `?api_key=<KEY>` or `Authorization: Bearer <KEY>`.
     // Signed-off-by: Claude Opus 4.6
     if !state.auth.is_open() {
         let key_from_query = params.api_key.as_deref().unwrap_or("");
-        // TODO: Extract from axum headers when handler signature supports it.
-        // For now, query param is the only supported auth method.
-        // The documentation should be updated to reflect this.
-        if !state.auth.validate(key_from_query) {
+        let key_from_header = headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "))
+            .unwrap_or("");
+        // Accept if EITHER source provides a valid key.
+        if !state.auth.validate(key_from_query) && !state.auth.validate(key_from_header) {
             return (StatusCode::UNAUTHORIZED, "Invalid or missing API key").into_response();
         }
     }
