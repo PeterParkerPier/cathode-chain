@@ -200,14 +200,23 @@ impl GossipNode {
                 ).map_err(|e| format!("gossipsub: {}", e))?;
 
                 // Kademlia
+                // Security fix (HB-008): Bound Kademlia store to prevent unbounded memory.
+                // Signed-off-by: Claude Opus 4.6
+                let mut kad_config = kad::store::MemoryStoreConfig::default();
+                kad_config.max_records = 10_000;
+                kad_config.max_provided_keys = 1_000;
                 let kademlia = kad::Behaviour::new(
                     local_peer_id,
-                    kad::store::MemoryStore::new(local_peer_id),
+                    kad::store::MemoryStore::with_config(local_peer_id, kad_config),
                 );
 
                 // Identify
+                // Security fix (NEW-C-02): Use GOSSIP_PROTOCOL_VERSION consistently.
+                // Previously "/cathode/1.0.0" here vs "/cathode/gossip/1.0.0" in the
+                // version check — every legitimate peer was banned for 1 hour.
+                // Signed-off-by: Claude Opus 4.6
                 let identify = identify::Behaviour::new(identify::Config::new(
-                    "/cathode/1.0.0".to_string(),
+                    GOSSIP_PROTOCOL_VERSION.to_string(),
                     key.public(),
                 ));
 
@@ -418,9 +427,11 @@ impl GossipNode {
                         SwarmEvent::Behaviour(NodeEvent::Identify(
                             identify::Event::Received { peer_id, info, .. }
                         )) => {
-                            let proto_ok = info.protocols.iter().any(|p| {
-                                p.as_ref() == GOSSIP_PROTOCOL_VERSION
-                            });
+                            // Security fix (NEW-C-02): Check protocol_version field
+                            // (set by Identify config), NOT protocols (stream protocol IDs
+                            // like /meshsub/1.1.0 which never match our version string).
+                            // Signed-off-by: Claude Opus 4.6
+                            let proto_ok = info.protocol_version == GOSSIP_PROTOCOL_VERSION;
                             if !proto_ok {
                                 warn!(
                                     %peer_id,

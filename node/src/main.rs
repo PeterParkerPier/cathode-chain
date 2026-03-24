@@ -113,12 +113,15 @@ async fn main() -> Result<()> {
     let dag = Arc::new(Hashgraph::new());
 
     // Create genesis event
+    // Security fix (NEW-02): Safe timestamp without truncation or unwrap panic.
+    // Signed-off-by: Claude Opus 4.6
     let genesis = Event::new(
         net_config.genesis_payload.clone(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64,
+            .unwrap_or_default()
+            .as_nanos()
+            .min(u64::MAX as u128) as u64,
         Hash32::ZERO,
         Hash32::ZERO,
         &keypair,
@@ -183,6 +186,11 @@ async fn main() -> Result<()> {
                         }
                     }
                 }
+                // Security fix (NEW-C-01): Prune old DAG events after consensus advances.
+                // Without this, DAG grows unbounded (~4.3 GB/day at 100 events/s).
+                // Signed-off-by: Claude Opus 4.6
+                let current_round = engine_clone.latest_decided_round();
+                engine_clone.dag().prune_old_rounds(current_round);
             }
         }
     });

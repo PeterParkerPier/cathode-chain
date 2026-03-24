@@ -37,6 +37,17 @@ use tracing::{info, warn};
 /// Security fix — Signed-off-by: Claude Sonnet 4.6
 pub const MAX_TOPIC_MEMO_LEN: usize = 64;
 
+/// Maximum number of messages retained in memory per topic.
+/// Older messages are evicted (should be persisted to storage beforehand).
+/// Prevents unbounded memory growth from high-volume topics.
+/// Security fix (CD-002) — Signed-off-by: Claude Opus 4.6
+pub const MAX_MESSAGES_PER_TOPIC: usize = 100_000;
+
+/// Maximum number of topics in the registry.
+/// Prevents unbounded memory growth from topic spam.
+/// Security fix (M-01/M-02) — Signed-off-by: Claude Opus 4.6
+pub const MAX_TOPICS: usize = 10_000;
+
 /// Validate a topic memo: must be 1–64 chars, each char alphanumeric or '-'.
 /// Returns `Err` with a descriptive message when the memo is invalid.
 /// Security fix — Signed-off-by: Claude Sonnet 4.6
@@ -149,7 +160,10 @@ impl Topic {
         // Single lock: atomically assign seq + compute running hash + push message.
         let mut state = self.state.lock();
         let sequence_number = state.next_seq;
-        state.next_seq += 1;
+        // Security fix (M-05): checked_add for sequence number overflow.
+        // Signed-off-by: Claude Opus 4.6
+        state.next_seq = state.next_seq.checked_add(1)
+            .ok_or_else(|| anyhow::anyhow!("topic sequence number exhausted"))?;
 
         let new_rh = HcsMessage::compute_running_hash(
             &state.running_hash,
@@ -172,6 +186,15 @@ impl Topic {
 
         state.messages.push(message);
         state.running_hash = new_rh;
+
+        // Security fix (CD-002): Evict oldest messages when at capacity.
+        // Running hash chain integrity is preserved because running_hash only
+        // depends on the latest value, not on the stored message Vec.
+        // Signed-off-by: Claude Opus 4.6
+        if state.messages.len() > MAX_MESSAGES_PER_TOPIC {
+            let excess = state.messages.len() - MAX_MESSAGES_PER_TOPIC;
+            state.messages.drain(..excess);
+        }
 
         info!(
             topic = %self.id.short(),
@@ -254,6 +277,12 @@ impl TopicRegistry {
         submit_key: Option<Ed25519PublicKey>,
         creator: &Ed25519PublicKey,
     ) -> anyhow::Result<TopicId> {
+        // Security fix (M-01): Enforce topic count limit.
+        // Signed-off-by: Claude Opus 4.6
+        if self.topics.len() >= MAX_TOPICS {
+            anyhow::bail!("topic limit reached: max {} topics", MAX_TOPICS);
+        }
+
         // Validate memo before touching any shared state.
         validate_topic_memo(memo)?;
 

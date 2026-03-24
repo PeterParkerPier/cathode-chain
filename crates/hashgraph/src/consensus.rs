@@ -89,6 +89,14 @@ impl ConsensusEngine {
         &self.state
     }
 
+    /// The latest round for which consensus is fully decided.
+    ///
+    /// Security fix (NEW-03): Public accessor needed for DAG pruning integration.
+    /// Signed-off-by: Claude Opus 4.6
+    pub fn latest_decided_round(&self) -> u64 {
+        *self.latest_decided_round.lock()
+    }
+
     /// Run one pass of the full consensus pipeline:
     ///   1. divideRounds (assign rounds, mark witnesses)
     ///   2. decideFame   (virtual voting)

@@ -341,8 +341,14 @@ impl StateDB {
     /// Security fix (C-05): prevents unbounded memory growth from dust spam.
     /// Security fix (C-05) — Signed-off-by: Claude Opus 4.6
     pub fn prune_transfer_locks(&self) {
-        self.transfer_locks.retain(|addr, _| {
-            self.accounts.contains_key(addr)
+        // Security fix (RE-01/RA-001): Only prune locks that are NOT currently
+        // held by another thread. Arc::strong_count > 1 means someone else holds
+        // a clone of the Arc (from transfer()), so removing it would break mutual
+        // exclusion. Also skip addresses that still have accounts.
+        // Signed-off-by: Claude Opus 4.6
+        self.transfer_locks.retain(|addr, lock| {
+            // Keep if: account exists OR lock is currently in use
+            self.accounts.contains_key(addr) || Arc::strong_count(lock) > 1
         });
     }
 

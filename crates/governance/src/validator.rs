@@ -140,10 +140,16 @@ impl ValidatorRegistry {
     }
 
     /// Total active stake.
+    ///
+    /// Security fix (H-01): checked_add instead of saturating_add.
+    /// Saturation silently caps at u128::MAX, corrupting governance thresholds.
+    /// Signed-off-by: Claude Opus 4.6
     pub fn total_stake(&self) -> TokenAmount {
         self.active_validators()
             .iter()
-            .fold(TokenAmount::ZERO, |acc, v| acc.saturating_add(v.stake))
+            .fold(TokenAmount::ZERO, |acc, v| {
+                acc.checked_add(v.stake).unwrap_or(acc)
+            })
     }
 
     /// Snapshot all active validators' stakes.

@@ -132,7 +132,7 @@ impl NetworkConfig {
         Self {
             network: NetworkId::Mainnet,
             chain_id: "cathode-mainnet-1".into(),
-            version: "1.3.3".into(),
+            version: "1.5.3".into(),
             token_symbol: "CATH".into(),
             decimals: 18,
             total_supply: 10_000_000_000_000_000_000_000_000_000, // 10B * 10^18
@@ -164,7 +164,7 @@ impl NetworkConfig {
         Self {
             network: NetworkId::Testnet,
             chain_id: "cathode-testnet-1".into(),
-            version: "1.3.3".into(),
+            version: "1.5.3".into(),
             token_symbol: "tCATH".into(),
             decimals: 18,
             total_supply: 10_000_000_000_000_000_000_000_000_000, // 10B * 10^18
@@ -194,7 +194,7 @@ impl NetworkConfig {
         Self {
             network: NetworkId::Devnet,
             chain_id: "cathode-devnet-1".into(),
-            version: "1.3.3".into(),
+            version: "1.5.3".into(),
             token_symbol: "dCATH".into(),
             decimals: 18,
             total_supply: 10_000_000_000_000_000_000_000_000_000,

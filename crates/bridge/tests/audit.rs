@@ -207,12 +207,14 @@ fn lock_confirm_relay_with_valid_proof() {
         100,
     ).unwrap();
 
+    let target_tx = "0xtx123";
     let proof = RelayProof {
         lock_id: lock.id,
-        target_chain_tx: "0xtx123".to_string(),
+        target_chain_tx: target_tx.to_string(),
         signatures: vec![
-            (r1_addr, sign_lock(&lock.id, &r1_kp)),
-            (r2_addr, sign_lock(&lock.id, &r2_kp)),
+            // Security fix: use domain-separated signing (BRG-C-03).
+            (r1_addr, sign_relay_proof(&lock.id, target_tx, &r1_kp)),
+            (r2_addr, sign_relay_proof(&lock.id, target_tx, &r2_kp)),
         ],
     };
     mgr.confirm_relay(lock.id, &proof, &relayer_set, r1_addr).unwrap();
@@ -237,12 +239,14 @@ fn lock_complete_after_relay() {
         100,
     ).unwrap();
 
+    let target_tx = "0xtx";
     let proof = RelayProof {
         lock_id: lock.id,
-        target_chain_tx: "0xtx".to_string(),
+        target_chain_tx: target_tx.to_string(),
         signatures: vec![
-            (r1_addr, sign_lock(&lock.id, &r1_kp)),
-            (r2_addr, sign_lock(&lock.id, &r2_kp)),
+            // Security fix: use domain-separated signing (BRG-C-03).
+            (r1_addr, sign_relay_proof(&lock.id, target_tx, &r1_kp)),
+            (r2_addr, sign_relay_proof(&lock.id, target_tx, &r2_kp)),
         ],
     };
     mgr.confirm_relay(lock.id, &proof, &relayer_set, r1_addr).unwrap();
@@ -618,13 +622,15 @@ fn relayer_duplicate_signer_counted_once() {
     let set = RelayerSet::new(vec![r1_addr, r2_addr], 2);
 
     let lock_id = Hasher::blake3(b"dup-signer");
+    let target_tx = "0xtx";
     let proof = RelayProof {
         lock_id,
-        target_chain_tx: "0xtx".into(),
+        target_chain_tx: target_tx.into(),
         signatures: vec![
-            (r1_addr, sign_lock(&lock_id, &r1_kp)),
-            (r1_addr, sign_lock(&lock_id, &r1_kp)), // duplicate
-            (r2_addr, sign_lock(&lock_id, &r2_kp)),
+            // Security fix: use domain-separated signing (BRG-C-03).
+            (r1_addr, sign_relay_proof(&lock_id, target_tx, &r1_kp)),
+            (r1_addr, sign_relay_proof(&lock_id, target_tx, &r1_kp)), // duplicate
+            (r2_addr, sign_relay_proof(&lock_id, target_tx, &r2_kp)),
         ],
     };
     assert!(verify_relay_proof(&proof, &set)); // 2 unique valid
@@ -683,7 +689,8 @@ fn merkle_single_leaf_proof() {
     let leaves = vec![leaf(42)];
     let proof = generate_proof(&leaves, 0);
     assert!(verify_proof(&proof));
-    assert_eq!(proof.root, leaves[0]);
+    // After CK-001 fix: root is leaf_hash(leaf), not raw leaf.
+    assert_eq!(proof.root, Hasher::leaf_hash(&leaves[0]));
 }
 
 // ─── Limits ──────────────────────────────────────────────────────────────────
@@ -856,12 +863,14 @@ fn lock_complete_unauthorized_rejected() {
         TokenAmount::from_tokens(10), TokenAmount::ZERO, 100,
     ).unwrap();
 
+    let target_tx = "0xtx";
     let proof = RelayProof {
         lock_id: lock.id,
-        target_chain_tx: "0xtx".into(),
+        target_chain_tx: target_tx.into(),
         signatures: vec![
-            (r1_addr, sign_lock(&lock.id, &r1_kp)),
-            (r2_addr, sign_lock(&lock.id, &r2_kp)),
+            // Security fix: use domain-separated signing (BRG-C-03).
+            (r1_addr, sign_relay_proof(&lock.id, target_tx, &r1_kp)),
+            (r2_addr, sign_relay_proof(&lock.id, target_tx, &r2_kp)),
         ],
     };
     mgr.confirm_relay(lock.id, &proof, &relayer_set, r1_addr).unwrap();

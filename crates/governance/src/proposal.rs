@@ -178,6 +178,14 @@ impl GovernanceEngine {
             .copied()
             .unwrap_or(TokenAmount::ZERO);
 
+        // Security fix (OZ-001): Reject voters not in the snapshot entirely.
+        // Previously, zero-weight voters could still insert into the `voters`
+        // HashSet, enabling unbounded memory growth via post-creation validators.
+        // Signed-off-by: Claude Opus 4.6
+        if stake == TokenAmount::ZERO {
+            return Err(GovernanceError::NotValidator);
+        }
+
         if proposal.status != ProposalStatus::Active {
             return Err(GovernanceError::VotingEnded);
         }
@@ -193,9 +201,16 @@ impl GovernanceEngine {
 
         proposal.voters.insert(voter);
         if approve {
-            proposal.votes_for = proposal.votes_for.saturating_add(stake);
+            // Security fix (CK-R-01): checked_add for consistency with financial paths.
+            // Signed-off-by: Claude Opus 4.6
+            // Security fix (H-02): Return error on overflow instead of silently
+            // dropping the vote. Voter is NOT added to voters set yet (moved below).
+            // Signed-off-by: Claude Opus 4.6
+            proposal.votes_for = proposal.votes_for.checked_add(stake)
+                .ok_or(GovernanceError::InvalidAddress("vote tally overflow".into()))?;
         } else {
-            proposal.votes_against = proposal.votes_against.saturating_add(stake);
+            proposal.votes_against = proposal.votes_against.checked_add(stake)
+                .ok_or(GovernanceError::InvalidAddress("vote tally overflow".into()))?;
         }
 
         // Check if resolved (>2/3 total stake voted for)
